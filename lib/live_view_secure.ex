@@ -25,7 +25,7 @@ defmodule LiveViewSecure do
           assign(socket, all_users: all_users)
 
         error ->
-          Logger.warning("Failed to delete user with ID #{inspect(user_id)}")
+          Logger.warning("Failed to delete user)
 
           socket
       end
