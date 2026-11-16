@@ -22,3 +22,5 @@ erl_crash.dump
 # Ignore package tarball (built via "mix hex.build").
 live_view_secure-*.tar
 
+# Dialyzer PLTs (cached in CI).
+/priv/plts/

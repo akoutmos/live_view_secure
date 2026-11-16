@@ -606,6 +606,7 @@ defmodule LiveViewSecure.Security.Lifecycle.OrderedLive do
   # hook is attached before this module's own on_mount.
   use Phoenix.LiveView
   import LiveViewSecure.HTML
+  alias LiveViewSecure.Security.Lifecycle.Log
 
   on_mount({LiveViewSecure, events: ["delete"], on_failure: :halt})
 
@@ -621,7 +622,7 @@ defmodule LiveViewSecure.Security.Lifecycle.OrderedLive do
   end
 
   def handle_event("delete", %{"id" => id}, socket),
-    do: {:noreply, LiveViewSecure.Security.Lifecycle.Log.log(socket, "deleted #{id}")}
+    do: {:noreply, Log.log(socket, "deleted #{id}")}
 end
 
 defmodule LiveViewSecure.Security.Lifecycle.DoubleAttachLive do
@@ -961,6 +962,7 @@ defmodule LiveViewSecure.Security.Lifecycle.EarlyHooksLive do
   # Two app hooks attached before LiveViewSecure, one after it (in mount/3).
   use Phoenix.LiveView
   import LiveViewSecure.HTML
+  alias LiveViewSecure.Security.Lifecycle.TraceHook
   import LiveViewSecure.Security.Lifecycle.Log
 
   on_mount({LiveViewSecure.Security.Lifecycle.TraceHook, :early_a})
@@ -971,7 +973,7 @@ defmodule LiveViewSecure.Security.Lifecycle.EarlyHooksLive do
     {:ok,
      socket
      |> assign(log: [])
-     |> LiveViewSecure.Security.Lifecycle.TraceHook.attach(:late)}
+     |> TraceHook.attach(:late)}
   end
 
   def render(assigns) do

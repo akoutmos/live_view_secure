@@ -679,6 +679,8 @@ defmodule LiveViewSecure.Security.Misuse.RawClient do
   # Joins a LiveView with a session token like the one the dead render puts in
   # data-phx-session, the way the JS client does.
 
+  alias Phoenix.LiveView.Static
+
   # Phoenix.Socket serializer callback: the channel sends encoded messages to
   # the transport, which is the test process.
   def encode!(msg), do: msg
@@ -688,7 +690,7 @@ defmodule LiveViewSecure.Security.Misuse.RawClient do
     topic = "lv:" <> id
 
     session =
-      Phoenix.LiveView.Static.sign_token(endpoint, %{
+      Static.sign_token(endpoint, %{
         id: id,
         view: view,
         root_view: view,
@@ -759,6 +761,7 @@ defmodule LiveViewSecure.Security.MisuseTest do
 
   alias LiveViewSecure.{Context, InvalidEventError, Signer}
   alias LiveViewSecure.Security.Misuse
+  alias Plug.Conn.Query
 
   @endpoint LiveViewSecure.Test.Endpoint
   @moduletag :capture_log
@@ -1516,7 +1519,7 @@ defmodule LiveViewSecure.Security.MisuseTest do
             fn -> JSON.encode!(%{secure: ctx}) end,
             fn -> apply(String.Chars, :to_string, [ctx]) end,
             fn -> apply(Phoenix.HTML.Safe, :to_iodata, [ctx]) end,
-            fn -> Plug.Conn.Query.encode(%{secure: ctx}) end,
+            fn -> Query.encode(%{secure: ctx}) end,
             fn -> rendered_to_string(~H"<div>{@ctx}</div>") end,
             fn -> rendered_to_string(~H"<div data-secure={@ctx}></div>") end
           ] do

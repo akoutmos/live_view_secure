@@ -193,7 +193,7 @@ defmodule LiveViewSecure.Security.CryptoKeySetTest do
              "handler received an id this process never signed: #{inspect(result)}"
     end
 
-    test "unsigned: [\"id\", \"title\"] while a template signs id", %{conn: conn} do
+    test ~S(unsigned: ["id", "title"] while a template signs id), %{conn: conn} do
       result = attack(conn, CryptoListPolicyPostsLive)
 
       refute is_binary(result) and result =~ "updated post 999",

@@ -26,6 +26,7 @@ defmodule LiveViewSecure.Security.LifecycleTest do
   import Phoenix.LiveViewTest
 
   alias LiveViewSecure.InvalidEventError
+  alias Phoenix.LiveView.{Controller, Router}
 
   alias LiveViewSecure.Security.Lifecycle.{
     ApprovalsLive,
@@ -175,8 +176,8 @@ defmodule LiveViewSecure.Security.LifecycleTest do
     conn =
       conn
       |> Plug.Conn.put_private(:phoenix_endpoint, @endpoint)
-      |> Phoenix.LiveView.Router.fetch_live_flash([])
-      |> Phoenix.LiveView.Controller.live_render(module, session: session)
+      |> Router.fetch_live_flash([])
+      |> Controller.live_render(module, session: session)
 
     dead_html = html_response(conn, 200)
     {:ok, view, _html} = live(conn)

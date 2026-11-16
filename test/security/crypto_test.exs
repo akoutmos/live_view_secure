@@ -10,6 +10,7 @@ defmodule LiveViewSecure.Security.CryptoTest do
   use ExUnitProperties
 
   alias LiveViewSecure.{Context, Signer}
+  alias Plug.Conn.Query
 
   @key_chars [?a..?z, ?A..?Z, ?0..?9, ?_, ?-]
   @policies [:deny, :allow, [], ["value"], ["key", "id"]]
@@ -501,15 +502,15 @@ defmodule LiveViewSecure.Security.CryptoTest do
             "ID=99&__sig=#{enc}",
             "__sig=#{enc}"
           ] do
-        params = Plug.Conn.Query.decode(query)
+        params = Query.decode(query)
         refute ok?(ctx, "save", params, :allow), "#{query} -> #{inspect(params)} verified"
       end
 
       # Duplicates resolve to the last value, and that's what gets verified and handled.
-      assert :ok = verify(ctx, "save", Plug.Conn.Query.decode("id=1&id=99&__sig=#{enc}"), :deny)
+      assert :ok = verify(ctx, "save", Query.decode("id=1&id=99&__sig=#{enc}"), :deny)
     end
 
-    test "the empty-DOM-value exemption covers exactly `\"value\" => \"\"` and `=> 0`" do
+    test ~S(the empty-DOM-value exemption covers exactly `"value" => ""` and `=> 0`) do
       ctx = Context.new()
       p = signed(ctx, "e", %{"id" => "7"})
       assert :ok = verify(ctx, "e", Map.put(p, "value", ""))
@@ -610,7 +611,7 @@ defmodule LiveViewSecure.Security.CryptoTest do
         query = Enum.join(parts)
 
         case (try do
-                {:ok, Plug.Conn.Query.decode(query)}
+                {:ok, Query.decode(query)}
               rescue
                 _ -> :decoder_rejected
               end) do

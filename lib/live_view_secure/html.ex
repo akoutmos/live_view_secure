@@ -64,23 +64,40 @@ defmodule LiveViewSecure.HTML do
   Keys here are case-sensitive and may be `"value"`.
   """
   @spec signed_push(Context.t(), String.t() | atom()) :: JS.t()
-  def signed_push(secure, event), do: signed_push(%JS{}, secure, event, [])
+  def signed_push(secure, event), do: signed_push(secure, event, [])
 
+  @doc """
+  `signed_push(js, secure, event)` or `signed_push(secure, event, opts)`.
+  See `signed_push/2`.
+  """
   @spec signed_push(JS.t(), Context.t(), String.t() | atom()) :: JS.t()
   @spec signed_push(Context.t(), String.t() | atom(), keyword()) :: JS.t()
   def signed_push(%JS{} = js, secure, event), do: signed_push(js, secure, event, [])
 
-  def signed_push(secure, event, opts) when is_list(opts),
-    do: signed_push(%JS{}, secure, event, opts)
+  def signed_push(secure, event, opts) when is_list(opts) do
+    {event, opts} = push_args(secure, event, opts)
+    JS.push(event, opts)
+  end
 
+  @doc """
+  `signed_push(js, secure, event, opts)`: adds the signed push to `js`. See
+  `signed_push/2`.
+  """
   @spec signed_push(JS.t(), Context.t(), String.t() | atom(), keyword()) :: JS.t()
   def signed_push(%JS{} = js, secure, event, opts) when is_list(opts) do
+    {event, opts} = push_args(secure, event, opts)
+    JS.push(js, event, opts)
+  end
+
+  # Shared by signed_push/3 and /4. Without a JS to add to, JS.push/2 builds
+  # one itself, since a %JS{}'s ops are opaque.
+  defp push_args(secure, event, opts) do
     event = event!(secure, event, opts[:target])
     {values, opts} = Keyword.pop(opts, :value, %{})
     values = Signer.normalize_values!(values, :push)
     token = Signer.sign(secure, event, values)
 
-    JS.push(js, event, Keyword.put(opts, :value, Map.put(values, Signer.sig_param(), token)))
+    {event, Keyword.put(opts, :value, Map.put(values, Signer.sig_param(), token))}
   end
 
   @doc """

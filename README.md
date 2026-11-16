@@ -51,7 +51,7 @@ def deps do
 end
 ```
 
-It needs Phoenix LiveView 1.1 or later and Elixir 1.15 or later.
+It needs Phoenix LiveView 1.1 or later and Elixir 1.18 or later.
 
 ## Setup
 

@@ -20,6 +20,7 @@ defmodule LiveViewSecure.Security.CryptoRoundTripTest do
   import LiveViewSecure.HTML
 
   alias LiveViewSecure.{Context, Signer}
+  alias Plug.Conn.Query
 
   # What a browser does with server HTML before LiveView reads it back:
   # decode UTF-8, then run the HTML tokenizer.
@@ -64,7 +65,7 @@ defmodule LiveViewSecure.Security.CryptoRoundTripTest do
   defp params_from_dom(doc, :form) do
     names = LazyHTML.attribute(LazyHTML.query(doc, "input"), "name")
     values = LazyHTML.attribute(LazyHTML.query(doc, "input"), "value")
-    names |> Enum.zip(values) |> URI.encode_query(:www_form) |> Plug.Conn.Query.decode()
+    names |> Enum.zip(values) |> URI.encode_query(:www_form) |> Query.decode()
   end
 
   defp params_from_dom(doc, :push) do

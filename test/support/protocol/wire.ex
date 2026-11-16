@@ -138,7 +138,7 @@ defmodule LiveViewSecure.Test.Protocol.Wire do
         IO.iodata_to_binary(acc)
 
       {size, _} ->
-        <<chunk::binary-size(size), "\r\n", rest::binary>> = rest
+        <<chunk::binary-size(^size), "\r\n", rest::binary>> = rest
         dechunk(rest, [acc | chunk])
     end
   end

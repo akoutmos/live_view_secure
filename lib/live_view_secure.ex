@@ -257,6 +257,9 @@ defmodule LiveViewSecure do
 
   ## Hook
 
+  # Every outcome of verification is decided here, in one place, so it can be
+  # reviewed as a whole.
+  # credo:disable-for-next-line Credo.Check.Refactor.CyclomaticComplexity
   defp verify_event(config, event, params, socket) do
     meta = Telemetry.metadata(socket, event)
 
@@ -359,15 +362,10 @@ defmodule LiveViewSecure do
 
   ## Config
 
-  defp config!(:default) do
-    raise ArgumentError, """
-    LiveViewSecure needs to know which events to verify, e.g.
+  defp config!(:default), do: missing_events!()
 
-        on_mount {LiveViewSecure, events: ["delete_user"]}
-        on_mount {LiveViewSecure, events: :all, except: ["validate"]}
-    """
-  end
-
+  # A straight run of option checks, each raising with its own message.
+  # credo:disable-for-next-line Credo.Check.Refactor.CyclomaticComplexity
   defp config!(opts) when is_list(opts) do
     opts =
       Keyword.validate!(opts, [:events, :signed, except: [], unsigned: :deny, on_failure: :raise])
@@ -377,7 +375,7 @@ defmodule LiveViewSecure do
 
     {mode, specs} =
       case opts[:events] do
-        nil -> config!(:default)
+        nil -> missing_events!()
         :all -> {:all, []}
         [:all | specs] -> {:all, specs}
         specs when is_list(specs) -> {:only, specs}
@@ -438,6 +436,16 @@ defmodule LiveViewSecure do
   defp config!(other) do
     raise ArgumentError,
           "expected LiveViewSecure options as a keyword list, got: #{inspect(other)}"
+  end
+
+  @spec missing_events! :: no_return()
+  defp missing_events! do
+    raise ArgumentError, """
+    LiveViewSecure needs to know which events to verify, e.g.
+
+        on_mount {LiveViewSecure, events: ["delete_user"]}
+        on_mount {LiveViewSecure, events: :all, except: ["validate"]}
+    """
   end
 
   defp event_spec!({event, event_opts}, defaults) when is_list(event_opts) do

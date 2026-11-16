@@ -48,13 +48,16 @@ defmodule LiveViewSecure.Context do
   ]
 
   @typedoc false
+  @type cid :: %Phoenix.LiveComponent.CID{} | nil
+
+  @typedoc false
   @type verifies :: {:only, MapSet.t(String.t())} | {:all_except, MapSet.t(String.t())}
 
   @type t :: %__MODULE__{
           id: binary(),
           prev_id: binary() | nil,
           root_gen: pos_integer(),
-          owner: {pid(), %Phoenix.LiveComponent.CID{} | nil},
+          owner: {pid(), cid()},
           verifies: verifies(),
           uses: %{optional(binary()) => pos_integer()},
           prev_uses: %{optional(binary()) => pos_integer()}
@@ -68,7 +71,7 @@ defmodule LiveViewSecure.Context do
   @doc false
   # `fresh_root: true` starts a new root for the process (a LiveView mounting).
   # Otherwise the current root is reused (a component mounting inside one).
-  @spec new(Phoenix.LiveComponent.CID.t() | nil, verifies(), keyword()) :: t()
+  @spec new(cid(), verifies(), keyword()) :: t()
   def new(cid \\ nil, verifies \\ {:all_except, MapSet.new()}, opts \\ []) do
     {gen, _current, _previous} =
       if Keyword.get(opts, :fresh_root, false), do: fresh_root(), else: ensure_root()
@@ -191,7 +194,7 @@ defmodule LiveViewSecure.Context do
   ## Ownership and declared events
 
   @doc false
-  @spec owned_by?(t(), pid(), Phoenix.LiveComponent.CID.t() | nil) :: boolean()
+  @spec owned_by?(t(), pid(), cid()) :: boolean()
   def owned_by?(%__MODULE__{owner: {pid, cid}}, owner_pid, owner_cid),
     do: pid == owner_pid and cid == owner_cid
 

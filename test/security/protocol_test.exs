@@ -17,7 +17,7 @@ defmodule LiveViewSecure.Security.ProtocolTest do
   use ExUnit.Case, async: false
   import ExUnit.CaptureLog
 
-  alias LiveViewSecure.Test.Protocol.{Endpoint, Recorder, Wire}
+  alias LiveViewSecure.Test.Protocol.{Client, Endpoint, Recorder, Wire}
 
   @moduletag :capture_log
 
@@ -410,7 +410,7 @@ defmodule LiveViewSecure.Security.ProtocolTest do
         raw =
           ~s(["1","#{ref}","#{topic}","event",{"type":"click","event":"delete_user","value":#{value_json}}])
 
-        :ok = LiveViewSecure.Test.Protocol.Client.send_text(conn.ws, raw)
+        :ok = Client.send_text(conn.ws, raw)
         assert {:reply, _} = Wire.await(conn.ws, topic, ref)
       end
 
