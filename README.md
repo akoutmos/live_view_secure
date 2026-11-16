@@ -39,6 +39,20 @@ defmodule MyAppWeb.UsersLive do
 end
 ```
 
+## Installation
+
+Add `live_view_secure` to your dependencies in `mix.exs`:
+
+```elixir
+def deps do
+  [
+    {:live_view_secure, "~> 0.1.0"}
+  ]
+end
+```
+
+It needs Phoenix LiveView 1.1 or later and Elixir 1.15 or later.
+
 ## Setup
 
 Attach the default logger when your application starts. It logs rejections,

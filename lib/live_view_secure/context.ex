@@ -54,7 +54,7 @@ defmodule LiveViewSecure.Context do
           id: binary(),
           prev_id: binary() | nil,
           root_gen: pos_integer(),
-          owner: {pid(), Phoenix.LiveComponent.CID.t() | nil},
+          owner: {pid(), %Phoenix.LiveComponent.CID{} | nil},
           verifies: verifies(),
           uses: %{optional(binary()) => pos_integer()},
           prev_uses: %{optional(binary()) => pos_integer()}
