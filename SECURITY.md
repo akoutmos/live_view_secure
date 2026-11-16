@@ -71,9 +71,10 @@ the library can't enforce.
 
 ## Security review
 
-On 2026-11-16 the library went through two rounds of adversarial review. Four
-independent reviewers each worked on a separate attack surface and proved
-every finding with a failing test before it was fixed. The surfaces were:
+On 2026-11-16 the library went through a thorough security review, made with
+AI tools and reviewed by the maintainer. It ran in two adversarial rounds over
+four attack surfaces, and every finding was proved with a failing test before
+it was fixed. The surfaces were:
 
 * token cryptography and parsing;
 * the LiveView wire protocol, driven over a real Bandit endpoint with raw V2
