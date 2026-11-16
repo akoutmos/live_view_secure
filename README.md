@@ -53,22 +53,6 @@ end
 
 It needs Phoenix LiveView 1.1 or later and Elixir 1.18 or later.
 
-## Setup
-
-Attach the default logger when your application starts. It logs rejections,
-and warns about signed events that reach a handler unverified:
-
-```elixir
-# lib/my_app/application.ex
-def start(_type, _args) do
-  :ok = LiveViewSecure.Telemetry.attach_default_logger()
-  # ...
-end
-```
-
-Then `import LiveViewSecure.HTML` wherever you import your other HTML helpers
-(`html_helpers/0` in `MyAppWeb`).
-
 ## Level Up Your Elixir Skills!
 
 Everything I have learned building production Elixir systems ends up in one of
@@ -107,6 +91,22 @@ out there!
 — A project-based introduction to Nerves. Wire up the sensors, capture readings
 and then pipe the data into a time series database that can be visualized with
 Grafana.
+
+## Setup
+
+Attach the default logger when your application starts. It logs rejections,
+and warns about signed events that reach a handler unverified:
+
+```elixir
+# lib/my_app/application.ex
+def start(_type, _args) do
+  :ok = LiveViewSecure.Telemetry.attach_default_logger()
+  # ...
+end
+```
+
+Then `import LiveViewSecure.HTML` wherever you import your other HTML helpers
+(`html_helpers/0` in `MyAppWeb`).
 
 ## What it guarantees, and what it doesn't
 
