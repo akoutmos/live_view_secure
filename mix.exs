@@ -30,7 +30,8 @@ defmodule LiveViewSecure.MixProject do
 
   defp package do
     [
-      files: ~w(lib mix.exs .formatter.exs README.md SECURITY.md CHANGELOG.md LICENSE),
+      # hex.pm shows the README from the package, so the images it references are packaged too.
+      files: ~w(lib images mix.exs .formatter.exs README.md SECURITY.md CHANGELOG.md LICENSE),
       licenses: ["MIT"],
       maintainers: ["Alex Koutmos"],
       links: %{
@@ -45,6 +46,8 @@ defmodule LiveViewSecure.MixProject do
       main: "readme",
       # Releases are tagged with their version, such as 0.1.0
       source_ref: @version,
+      # The README references its images as images/..., which works on GitHub, hex.pm and in the docs
+      assets: %{"images" => "images"},
       extras: ["README.md", "SECURITY.md", "CHANGELOG.md"]
     ]
   end
