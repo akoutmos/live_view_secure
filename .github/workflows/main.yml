@@ -1,0 +1,93 @@
+name: LiveViewSecure CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  static_analysis:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      # Elixir 1.20's type checker finds warnings that earlier versions don't
+      - name: Set up Elixir
+        id: beam
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.20.5"
+          otp-version: "29.1.2"
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: deps
+          key: ${{ runner.os }}-deps-v1-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-deps-v1-
+      - name: Install dependencies
+        run: mix deps.get
+      - name: Restore PLT cache
+        uses: actions/cache@v4
+        with:
+          path: priv/plts
+          key: ${{ runner.os }}-plt-v1-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-plt-v1-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-
+      - name: Mix Formatter
+        run: mix format --check-formatted
+      - name: Check for unused dependencies in mix.lock
+        run: mix deps.unlock --check-unused
+      - name: Check for compiler warnings
+        run: mix compile --warnings-as-errors
+      - name: Credo strict checks
+        run: mix credo --strict
+      - name: Doctor documentation checks
+        run: mix doctor
+      - name: Dialyzer
+        run: mix dialyzer --format github
+      - name: Docs build without warnings
+        run: mix docs --warnings-as-errors
+
+  unit_test:
+    name: Tests (Elixir ${{ matrix.version.elixir }}, OTP ${{ matrix.version.otp }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        version:
+          - otp: "27"
+            elixir: "1.18"
+          - otp: "28"
+            elixir: "1.18"
+          - otp: "28"
+            elixir: "1.19"
+          - otp: "28"
+            elixir: "1.20"
+          - otp: "29"
+            elixir: "1.20"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ matrix.version.elixir }}
+          otp-version: ${{ matrix.version.otp }}
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: deps
+          key: ${{ runner.os }}-deps-v1-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-deps-v1-
+      - name: Install dependencies
+        run: mix deps.get
+      # Compiles test/support too, so Elixir 1.20's type checker also covers the
+      # wire-protocol test harness
+      - name: ExUnit tests
+        env:
+          MIX_ENV: test
+        run: mix test --warnings-as-errors
