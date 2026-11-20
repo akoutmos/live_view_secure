@@ -60,20 +60,13 @@ defmodule LiveViewSecureTest do
       assert {:cont, %Socket{}} = LiveViewSecure.on_mount(@users_opts, %{}, %{}, socket)
     end
 
-    test "raises when it came from a live_session" do
+    test "runs when only a live_session declares it" do
       socket = %{socket() | view: NoOnMountLive}
 
-      assert_raise ArgumentError, ~r/must be declared in .*NoOnMountLive itself/, fn ->
-        LiveViewSecure.on_mount([events: ["go"]], %{}, %{}, socket)
-      end
-    end
+      assert {:cont, %Socket{} = socket} =
+               LiveViewSecure.on_mount([events: ["go"]], %{}, %{}, socket)
 
-    test "raises when the module declares different options than the ones running" do
-      socket = %{socket() | view: LiveViewSecure.Test.UsersLive}
-
-      assert_raise ArgumentError, ~r/not in a live_session/, fn ->
-        LiveViewSecure.on_mount([events: :all], %{}, %{}, socket)
-      end
+      assert [%{id: :live_view_secure}] = socket.private.lifecycle.handle_event
     end
   end
 

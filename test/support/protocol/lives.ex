@@ -297,8 +297,7 @@ end
 
 defmodule LiveViewSecure.Test.Protocol.SessionGuardedLive do
   @moduledoc false
-  # Protected ONLY by the live_session's on_mount (the README allows this:
-  # "use either a live_session on_mount or a module-level one").
+  # Protected ONLY by the live_session's on_mount.
   #
   # The README's scenario: only admins get a (signed) delete button. This user
   # is not an admin, so nothing signed is rendered for them, and the hook is
@@ -328,6 +327,23 @@ defmodule LiveViewSecure.Test.Protocol.SessionGuardedLive do
 
   def handle_event("delete_user", %{"id" => id}, socket) do
     Recorder.record(:session_guarded, "delete_user", %{"id" => id})
+    {:noreply, socket}
+  end
+end
+
+defmodule LiveViewSecure.Test.Protocol.SessionGuardedParamsLive do
+  @moduledoc false
+  # Defines handle_params/3. Even before the fix for CVE-2026-126334, LiveView
+  # refused a url-less join for such a view.
+  use Phoenix.LiveView
+  alias LiveViewSecure.Test.Protocol.Recorder
+
+  def mount(_params, _session, socket), do: {:ok, assign(socket, admin: false)}
+  def handle_params(_params, _uri, socket), do: {:noreply, socket}
+  def render(assigns), do: ~H"<p>guarded with params</p>"
+
+  def handle_event("delete_user", %{"id" => id}, socket) do
+    Recorder.record(:session_guarded_params, "delete_user", %{"id" => id})
     {:noreply, socket}
   end
 end
@@ -521,9 +537,11 @@ defmodule LiveViewSecure.Test.Protocol.HookedLive do
   end
 end
 
-defmodule LiveViewSecure.Test.Protocol.AppHookedLive do
+defmodule LiveViewSecure.Test.Protocol.HookedNoParamsLive do
   @moduledoc false
-  # In the :app_hooks live_session, LiveViewSecure in the module.
+  # In the :app_hooks live_session, LiveViewSecure in the module, no
+  # handle_params/3 (so LiveView before 1.1.34 / 1.2.14 accepted a url-less
+  # join for it).
   use Phoenix.LiveView
   import LiveViewSecure.HTML
   alias LiveViewSecure.Test.Protocol.Recorder
@@ -539,7 +557,7 @@ defmodule LiveViewSecure.Test.Protocol.AppHookedLive do
   end
 
   def handle_event(event, params, socket) do
-    Recorder.record(:app_hooked, event, params)
+    Recorder.record(:hooked_noparams, event, params)
     {:noreply, socket}
   end
 end

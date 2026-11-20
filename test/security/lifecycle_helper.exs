@@ -12,9 +12,8 @@ defmodule LiveViewSecure.Security.Lifecycle.Opts do
   #
   #     live_isolated(conn, ApprovalsLive, session: %{"lvs_opts" => [events: ..., on_failure: :halt]})
   #
-  # It calls attach/2 directly: LiveViewSecure.on_mount/4 insists on being
-  # declared in the view itself. This module is declared in the view, so it
-  # still runs on every mount.
+  # It calls attach/2 directly, and is declared in the view, so it runs on
+  # every mount.
   @default [events: ["approve", "view", "transfer", "purge", "delete_item"]]
 
   def on_mount(:default, _params, session, socket) do
@@ -636,6 +635,61 @@ defmodule LiveViewSecure.Security.Lifecycle.DoubleAttachLive do
   def render(assigns), do: ~H"<p>double</p>"
 end
 
+defmodule LiveViewSecure.Security.Lifecycle.SessionSecuredLive do
+  @moduledoc false
+  # Protected only by its live_session's on_mount.
+  use Phoenix.LiveView
+  import LiveViewSecure.HTML
+  import LiveViewSecure.Security.Lifecycle.Log
+
+  def mount(_params, _session, socket), do: {:ok, assign(socket, log: [])}
+
+  def render(assigns) do
+    ~H"""
+    <button id="delete-1" {signed_attrs(@live_view_secure, "delete", id: 1)}>delete</button>
+    <ul id="log">
+      <li :for={entry <- @log}>{entry}</li>
+    </ul>
+    """
+  end
+
+  def handle_event("delete", %{"id" => id}, socket), do: {:noreply, log(socket, "deleted #{id}")}
+end
+
+defmodule LiveViewSecure.Security.Lifecycle.UnhookedChildLive do
+  @moduledoc false
+  # Nested in SessionNestedLive with live_render, with no on_mount of its own.
+  use Phoenix.LiveView
+  import LiveViewSecure.Security.Lifecycle.Log
+
+  def mount(_params, _session, socket), do: {:ok, assign(socket, log: [])}
+
+  def render(assigns) do
+    ~H"""
+    <ul id="child-log">
+      <li :for={entry <- @log}>{entry}</li>
+    </ul>
+    """
+  end
+
+  def handle_event("delete", %{"id" => id}, socket),
+    do: {:noreply, log(socket, "child deleted #{id}")}
+end
+
+defmodule LiveViewSecure.Security.Lifecycle.SessionNestedLive do
+  @moduledoc false
+  # Routed in a live_session that declares LiveViewSecure, and nests a child.
+  use Phoenix.LiveView
+
+  def mount(_params, _session, socket), do: {:ok, socket}
+
+  def render(assigns) do
+    ~H"""
+    {live_render(@socket, LiveViewSecure.Security.Lifecycle.UnhookedChildLive, id: "unhooked-child")}
+    """
+  end
+end
+
 defmodule LiveViewSecure.Security.Lifecycle.ClobberLive do
   @moduledoc false
   # App code that clobbers the @live_view_secure assign.
@@ -1018,6 +1072,8 @@ defmodule LiveViewSecure.Security.Lifecycle.Router do
 
   live_session :secured, on_mount: [{LiveViewSecure, events: ["delete"]}] do
     live("/double", Lifecycle.DoubleAttachLive)
+    live("/session-secured", Lifecycle.SessionSecuredLive)
+    live("/session-nested", Lifecycle.SessionNestedLive)
   end
 
   live_session :plain do

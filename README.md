@@ -51,7 +51,11 @@ def deps do
 end
 ```
 
-It needs Phoenix LiveView 1.1 or later and Elixir 1.18 or later.
+It needs Phoenix LiveView 1.1.34, 1.2.14 or later, and Elixir 1.18 or later.
+Those LiveView releases fix
+[CVE-2026-126334](https://github.com/phoenixframework/phoenix_live_view/security/advisories/GHSA-v4p7-3pm2-wq6c),
+which let a hand-crafted join skip a `live_session`'s `on_mount` hooks, your
+own included.
 
 ## Level Up Your Elixir Skills!
 
@@ -151,12 +155,14 @@ components that don't use it.
   helper raises when it renders, instead of shipping an event that looks
   protected but isn't.
 
-**Declare `on_mount {LiveViewSecure, ...}` in the LiveView module, not in a
-`live_session`.** `on_mount/4` raises when it runs from a live_session. Putting
-it in the `live_view` block of your `MyAppWeb` module counts as the module, and
-so does calling `LiveViewSecure.attach/2` from `mount/3`. If you wrap it in your
-own `on_mount` module, call `LiveViewSecure.attach/2` from it rather than
-`on_mount/4`, and declare the wrapper in each LiveView module too.
+**Declare `on_mount {LiveViewSecure, ...}` in the LiveView module.** Putting it
+in the `live_view` block of your `MyAppWeb` module counts as the module, and so
+does calling `LiveViewSecure.attach/2` from `mount/3`. A `live_session`'s
+`on_mount` works too, but LiveView only runs it for LiveViews mounted through
+one of that session's routes, not for nested ones (`live_render`) or ones
+rendered from a controller. Hooks in the module run however the LiveView is
+mounted, and the event list sits next to the `handle_event/3` clauses it covers.
+Declare it in one place only: attaching twice to the same LiveView raises.
 
 ## Options
 
@@ -332,9 +338,10 @@ end
 ## Nested LiveViews
 
 A nested LiveView (`live_render`) is its own process with its own root key.
-It needs its own `on_mount` in its module, since a parent's never applies to
-it. A context only works in the process that created it, so handing one to a
-child, through its session or `assign_new/3`, raises.
+It needs its own `on_mount` in its module, since neither its parent's nor a
+`live_session`'s applies to it. A context only works in the process that
+created it, so handing one to a child, through its session or `assign_new/3`,
+raises.
 
 ## Telemetry and logging
 
@@ -442,10 +449,6 @@ secure behavior the library can't provide. Run them with
 * **A click in flight across two rotations in quick succession** isn't
   recognized as `:revoked`, so `on_failure` applies.
 * **The submit button's `name`/`value` is user input.** See [Forms](#forms).
-* **Wrappers that tail-call `attach/2`.** `attach/2` refuses to run from a
-  live_session's `on_mount`, but it detects that from the call stack. A wrapper
-  that tail-calls into a helper leaves no frame and isn't caught. Declare
-  wrappers in the LiveView module.
 
 See [SECURITY.md](SECURITY.md) for the threat model and the security review.
 
