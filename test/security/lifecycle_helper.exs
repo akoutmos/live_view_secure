@@ -1,9 +1,7 @@
 # Test LiveViews, components, a router and an endpoint for
-# test/security/lifecycle_test.exs and lifecycle_patched_test.exs.
-# (Named *_helper.exs so mix test neither loads it as a test file nor warns.)
-#
-# This file is loaded with Code.require_file/2 from those test files, so it is
-# compiled once, against whatever is in lib/ (the original or a patched copy).
+# test/security/lifecycle_test.exs, which loads this file with
+# Code.require_file/2. (Named *_helper.exs so mix test neither loads it as a
+# test file nor warns.)
 
 defmodule LiveViewSecure.Security.Lifecycle.Opts do
   @moduledoc false
