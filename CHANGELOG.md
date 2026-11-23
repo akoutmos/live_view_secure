@@ -34,7 +34,8 @@ First release on Hex. It's a rewrite of the 2021 proof of concept, which was nev
 
 ### Security
 
-- Requires `phoenix_live_view` 1.1.34, 1.2.14 or later. Earlier releases let a hand-crafted join skip a
-  `live_session`'s `on_mount` hooks, LiveViewSecure's included
+- Requires `phoenix_live_view` 1.1.34, 1.2.15 or later. Releases before 1.1.34 and 1.2.14 let a hand-crafted
+  join skip a `live_session`'s `on_mount` hooks, LiveViewSecure's included
   ([CVE-2026-126334](https://github.com/phoenixframework/phoenix_live_view/security/advisories/GHSA-v4p7-3pm2-wq6c),
-  found during this library's security review).
+  found during this library's security review). 1.2.15 is the same code as 1.2.14, plus the client type
+  declarations that release left out.

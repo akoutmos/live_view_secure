@@ -51,8 +51,8 @@ def deps do
 end
 ```
 
-It needs Phoenix LiveView 1.1.34, 1.2.14 or later, and Elixir 1.18 or later.
-Those LiveView releases fix
+It needs Phoenix LiveView 1.1.34, 1.2.15 or later, and Elixir 1.18 or later.
+Those LiveView releases include the fix for
 [CVE-2026-126334](https://github.com/phoenixframework/phoenix_live_view/security/advisories/GHSA-v4p7-3pm2-wq6c),
 which let a hand-crafted join skip a `live_session`'s `on_mount` hooks, your
 own included.

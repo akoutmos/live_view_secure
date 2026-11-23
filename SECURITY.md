@@ -39,8 +39,8 @@ signing a key the policy also accepts unsigned, and attaching twice to one
 LiveView.
 
 The hook has to run for that, so LiveViewSecure requires LiveView 1.1.34,
-1.2.14 or later. Earlier releases let a hand-crafted join skip a
-`live_session`'s `on_mount` hooks (see [Upstream LiveView
+1.2.15 or later. Releases before 1.1.34 and 1.2.14 let a hand-crafted join
+skip a `live_session`'s `on_mount` hooks (see [Upstream LiveView
 issue](#upstream-liveview-issue)). A `live_session` declaration covers only
 the LiveViews mounted through that session's routes, so the README recommends
 declaring `on_mount` in the LiveView module.
@@ -93,7 +93,7 @@ it was fixed. The surfaces were:
 
 | Severity | Finding | Status |
 | --- | --- | --- |
-| High | A live_session-level `on_mount` is skipped by a hand-crafted join without `"url"`, so nothing is verified | Fixed upstream in LiveView 1.1.34 and 1.2.14 ([CVE-2026-126334](https://github.com/phoenixframework/phoenix_live_view/security/advisories/GHSA-v4p7-3pm2-wq6c)), which LiveViewSecure requires. See [Upstream LiveView issue](#upstream-liveview-issue) |
+| High | A live_session-level `on_mount` is skipped by a hand-crafted join without `"url"`, so nothing is verified | Fixed upstream in LiveView 1.1.34 and 1.2.14 ([CVE-2026-126334](https://github.com/phoenixframework/phoenix_live_view/security/advisories/GHSA-v4p7-3pm2-wq6c)). LiveViewSecure requires a fixed LiveView. See [Upstream LiveView issue](#upstream-liveview-issue) |
 | High | An event a template signs but `:events` doesn't declare is accepted unsigned | Fixed: helpers raise at render; undeclared signed events, and signed events reaching hook-less sockets, are reported (and logged by the default logger) |
 | Medium | Under `unsigned: :allow`, a token covering fewer keys lets the client supply the rest (e.g. `id`) | Fixed: `:signed` is required with `:allow`; signing a key the policy also accepts unsigned raises at render |
 | Medium | `rotate/1` on a LiveView didn't revoke its components' tokens | Fixed: per-process root key |

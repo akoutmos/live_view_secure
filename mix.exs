@@ -64,9 +64,10 @@ defmodule LiveViewSecure.MixProject do
   defp deps do
     [
       # 1.1.34 and 1.2.14 fix CVE-2026-126334: a join without a url skipped the
-      # live_session's on_mount hooks. 1.0.20 has the fix too, but the test
+      # live_session's on_mount hooks. 1.2.15 is the same code plus the client
+      # type declarations 1.2.14 left out. 1.0.20 has the fix too, but the test
       # suite's raw-websocket harness needs LiveView 1.1's diff format.
-      {:phoenix_live_view, "~> 1.1.34 or ~> 1.2.14 or ~> 1.3"},
+      {:phoenix_live_view, "~> 1.1.34 or ~> 1.2.15 or ~> 1.3"},
       {:plug_crypto, "~> 2.0"},
       {:telemetry, "~> 1.0"},
       {:ex_doc, "~> 0.40", only: :dev, runtime: false},
