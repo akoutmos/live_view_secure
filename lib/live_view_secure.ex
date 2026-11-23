@@ -112,31 +112,19 @@ defmodule LiveViewSecure do
 
       on_mount {LiveViewSecure, events: ["delete_user"]}
 
-  Declaring it in a `live_session` raises: each LiveView that relies on
-  LiveViewSecure declares it itself.
+  A `live_session`'s `on_mount` works too, but LiveView only runs it for
+  LiveViews mounted through one of that session's routes, not for nested
+  (`live_render`) or controller-rendered ones. Hooks declared in the module run
+  however the LiveView is mounted, and the event list sits next to the
+  `handle_event/3` clauses it covers. Declare it in one place only: attaching
+  twice raises.
 
   See the module docs for options.
   """
   @spec on_mount([option()] | :default, map() | :not_mounted_at_router, map(), Socket.t()) ::
           {:cont, Socket.t()}
   def on_mount(opts, _params, _session, %Socket{} = socket) do
-    ensure_declared_in_view!(socket, opts)
     {:cont, attach(socket, opts)}
-  end
-
-  defp ensure_declared_in_view!(%Socket{view: view}, opts) do
-    declared_in_view? =
-      Enum.any?(view.__live__().lifecycle.mount, &match?(%{id: {__MODULE__, ^opts}}, &1))
-
-    if not declared_in_view? do
-      raise ArgumentError, """
-      on_mount {LiveViewSecure, ...} must be declared in #{inspect(view)} itself, \
-      not in a live_session.
-
-      Move the on_mount into the LiveView module, or into the `live_view` block \
-      of your MyAppWeb module.
-      """
-    end
   end
 
   @doc """
@@ -160,7 +148,6 @@ defmodule LiveViewSecure do
   """
   @spec attach(Socket.t(), [option()] | :default) :: Socket.t()
   def attach(%Socket{} = socket, opts) do
-    ensure_not_from_live_session!(socket)
     config = config!(opts)
     cid = socket.assigns[:myself]
 
@@ -173,37 +160,6 @@ defmodule LiveViewSecure do
     |> Phoenix.Component.assign(@assign, context)
     |> attach_first(fn event, params, socket -> verify_event(config, event, params, socket) end)
   end
-
-  # The same rule as in on_mount/4, one level removed: a policy module whose
-  # on_mount calls attach/2 has to be declared in the view itself, not in a
-  # live_session. Its on_mount/4 frame is on the stack while it runs, so refuse
-  # unless that module is declared in the view. Best effort: a wrapper that
-  # tail-calls into a helper leaves no frame.
-  defp ensure_not_from_live_session!(%Socket{view: view}) when is_atom(view) and view != nil do
-    if function_exported?(view, :__live__, 0) do
-      own =
-        for %{id: {module, _}} <- view.__live__().lifecycle.mount, into: MapSet.new(), do: module
-
-      {:current_stacktrace, stack} = Process.info(self(), :current_stacktrace)
-
-      foreign =
-        for {module, :on_mount, 4, _location} <- stack,
-            module != __MODULE__,
-            not MapSet.member?(own, module),
-            do: module
-
-      if foreign != [] do
-        raise ArgumentError, """
-        LiveViewSecure.attach/2 was called from #{inspect(hd(foreign))}.on_mount/4, which \
-        isn't declared in #{inspect(view)} itself (a live_session's on_mount?). Declare \
-        `on_mount #{inspect(hd(foreign))}` in the LiveView module (or its `live_view` block \
-        in MyAppWeb), or call attach/2 from mount/3.\
-        """
-      end
-    end
-  end
-
-  defp ensure_not_from_live_session!(_socket), do: :ok
 
   # LiveView runs :handle_event hooks in the order they were attached. Detach
   # any that are already there and re-attach them after ours, so nothing sees

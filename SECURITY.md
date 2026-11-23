@@ -35,8 +35,15 @@ For every declared event, the handler runs only if all of these hold:
 Verification runs before `handle_event/3` and before every other
 `:handle_event` hook. Configurations that would silently skip it raise when
 the LiveView mounts or renders. That includes signing an undeclared event, and
-signing a key the policy also accepts unsigned. `on_mount` must be declared in
-the LiveView module itself, and raises from a `live_session`.
+signing a key the policy also accepts unsigned, and attaching twice to one
+LiveView.
+
+The hook has to run for that, so LiveViewSecure requires LiveView 1.1.34,
+1.2.15 or later. Releases before 1.1.34 and 1.2.14 let a hand-crafted join
+skip a `live_session`'s `on_mount` hooks (see [Upstream LiveView
+issue](#upstream-liveview-issue)). A `live_session` declaration covers only
+the LiveViews mounted through that session's routes, so the README recommends
+declaring `on_mount` in the LiveView module.
 
 A signature proves "this was on the page", not "this user may do it now". Keep
 authorizing in your contexts. See the README's "Known limitations" for what
@@ -86,11 +93,13 @@ it was fixed. The surfaces were:
 
 | Severity | Finding | Status |
 | --- | --- | --- |
+| High | A live_session-level `on_mount` is skipped by a hand-crafted join without `"url"`, so nothing is verified | Fixed upstream in LiveView 1.1.34 and 1.2.14 ([CVE-2026-126334](https://github.com/phoenixframework/phoenix_live_view/security/advisories/GHSA-v4p7-3pm2-wq6c)). LiveViewSecure requires a fixed LiveView. See [Upstream LiveView issue](#upstream-liveview-issue) |
 | High | An event a template signs but `:events` doesn't declare is accepted unsigned | Fixed: helpers raise at render; undeclared signed events, and signed events reaching hook-less sockets, are reported (and logged by the default logger) |
 | Medium | Under `unsigned: :allow`, a token covering fewer keys lets the client supply the rest (e.g. `id`) | Fixed: `:signed` is required with `:allow`; signing a key the policy also accepts unsigned raises at render |
 | Medium | `rotate/1` on a LiveView didn't revoke its components' tokens | Fixed: per-process root key |
 | Medium | Tokens are replayable until rotation | Mitigated: per-pair `single_use`; documented |
 | Medium | `single_use` (first version) killed every other token, including stream items | Fixed: per-pair use counts |
+| Medium | `attach/2` called from a live_session wrapper is skipped by a url-less join | Fixed upstream, with the High finding above |
 | Medium | Key reachable via a nested LiveView's session token (signed, not encrypted) | Fixed: no key material in the struct |
 | Medium | A component signing with its parent's context is never verified | Partial: caught at render with `target:`; otherwise logged; documented |
 | Medium | `:handle_event` hooks attached earlier (e.g. by a live_session) ran before verification | Fixed: verification hook moved to the front |
@@ -125,8 +134,23 @@ What was tried and blocked includes:
 * **Denial of service:** verification cost measured linear up to 100 MB
   values and 1M params.
 
-The suite has 13 properties and 319 tests. During the review, each of 16
+The suite has 13 properties and 323 tests. During the review, each of 16
 targeted mutations of the library failed at least one test.
+
+### Upstream LiveView issue
+
+The first High finding came from LiveView itself (verified on 1.2.13). A
+hand-crafted join that left out `"url"` mounted a routed LiveView without its
+`live_session`'s `on_mount` hooks: LiveViewSecure's, and any of the app's own,
+such as authentication. It was reported privately to the Phoenix team, who
+fixed it in LiveView 1.0.20, 1.1.34 and 1.2.14. See their advisory,
+[CVE-2026-126334 (GHSA-v4p7-3pm2-wq6c)](https://github.com/phoenixframework/phoenix_live_view/security/advisories/GHSA-v4p7-3pm2-wq6c).
+
+Until the fix was released, LiveViewSecure worked around it by requiring
+`on_mount` in the LiveView module, since a module's own hooks ran on every
+join. It now requires a fixed LiveView instead, and the tests that replay the
+attack fail on 1.2.13. If your app uses `live_session` hooks for anything, run
+a fixed LiveView whether or not you use LiveViewSecure.
 
 ## Reporting a vulnerability
 
