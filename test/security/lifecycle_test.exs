@@ -799,8 +799,31 @@ defmodule LiveViewSecure.Security.LifecycleTest do
       end
     end
 
-    test "on_mount in a live_session raises at mount", %{conn: conn} do
-      assert_raise ArgumentError, ~r/must be declared in/, fn -> live(conn, "/double") end
+    test "on_mount in a live_session verifies the session's LiveViews", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/session-secured")
+
+      assert_accepted(view, click_el(view, "#delete-1"))
+      assert read_log(view, "#log") == ["deleted 1"]
+
+      assert {:raised, :missing_signature} =
+               assert_blocked(view, click(view, "delete", %{"id" => "666"}))
+    end
+
+    test "on_mount in both a live_session and the module raises at mount (double attach)",
+         %{conn: conn} do
+      assert_raise ArgumentError, ~r/called twice/, fn -> live(conn, "/double") end
+    end
+
+    test "BY DESIGN: a live_session's on_mount doesn't reach a LiveView nested with live_render",
+         %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/session-nested")
+      child = find_live_child(view, "unhooked-child")
+
+      # LiveView runs live_session hooks only for the routed (root) LiveView.
+      # The README says to declare on_mount in the module for this reason.
+      refute Map.has_key?(:sys.get_state(child.pid).socket.assigns, :live_view_secure)
+      render_click(child, "delete", %{"id" => "666"})
+      assert read_log(child, "#child-log") == ["child deleted 666"]
     end
 
     test "clobbering @live_view_secure fails closed (:no_context)", %{conn: conn} do

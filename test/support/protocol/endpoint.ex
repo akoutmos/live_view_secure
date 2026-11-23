@@ -56,10 +56,11 @@ defmodule LiveViewSecure.Test.Protocol.Router do
     live("/patch", Protocol.PatchLive)
     live("/exact", Protocol.ExactLive)
 
+    live("/session-guarded-params", Protocol.SessionGuardedParamsLive)
     live("/bank", Protocol.BankLive)
     live("/foreign-nested", Protocol.ForeignParentLive)
 
-    # Round-1 F1: LiveViewSecure only in a live_session. Round 2: refused at mount.
+    # Round-1 F1 (CVE-2026-126334 in LiveView): LiveViewSecure only in a live_session.
     live_session :guarded,
       on_mount: [{LiveViewSecure, events: ["delete_user", "view_user"]}] do
       live("/session-guarded", Protocol.SessionGuardedLive)
@@ -69,7 +70,7 @@ defmodule LiveViewSecure.Test.Protocol.Router do
     # LiveViewSecure declared in the modules.
     live_session :app_hooks, on_mount: [Protocol.SessionHook] do
       live("/hooked", Protocol.HookedLive)
-      live("/app-hooked", Protocol.AppHookedLive)
+      live("/hooked-noparams", Protocol.HookedNoParamsLive)
     end
 
     # The live_session declares LiveViewSecure with other opts than the module.

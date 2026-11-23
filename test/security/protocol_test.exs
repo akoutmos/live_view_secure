@@ -43,22 +43,32 @@ defmodule LiveViewSecure.Security.ProtocolTest do
   ## Join
 
   describe "join: where the hook gets attached" do
-    # on_mount/4 refuses to run unless the module itself declares
-    # {LiveViewSecure, opts}, so the dead render fails and no session token is
-    # ever issued for such a page.
-    test "a live_session-only LiveViewSecure hook is refused at the dead render",
+    # Round-1 F1 (high), CVE-2026-126334: LiveView's Channel.authorize_session/3
+    # accepted a root join with neither "url" nor "redirect", and then never ran
+    # the live_session's on_mount hooks, so a live_session-only LiveViewSecure
+    # was never attached. Fixed in LiveView 1.1.34 and 1.2.14, which
+    # LiveViewSecure requires.
+    test "a join that omits \"url\" must not skip a live_session's LiveViewSecure hook",
          %{port: port} do
-      {status, log} = with_log(fn -> wait_for_log(Wire.http_status(port, "/session-guarded")) end)
-      assert status == 500
-      assert log =~ "(ArgumentError) on_mount {LiveViewSecure, ...} must be declared in"
-      assert log =~ "LiveViewSecure.Test.Protocol.SessionGuardedLive itself"
+      # Control: the JS client's join runs the live_session's hook, which
+      # rejects the forged event.
+      conn = Wire.open!(port, "/session-guarded")
+      assert {:crashed, _} = Wire.event(conn, "click", "delete_user", %{"id" => "7"})
+
+      # The attack: the same page, joined without "url", is refused.
+      page = Wire.get_page!(port, "/session-guarded")
+
+      assert {:error, _refused} =
+               Wire.join(Wire.connect!(page), page, payload: &Map.delete(&1, "url"))
+
+      assert recorded(:session_guarded) == []
     end
 
-    test "a live_session declaring LiveViewSecure with other opts than the module is refused",
+    test "a live_session declaring LiveViewSecure with other opts than the module is refused (double attach)",
          %{port: port} do
       {status, log} = with_log(fn -> wait_for_log(Wire.http_status(port, "/mismatch")) end)
       assert status == 500
-      assert log =~ "must be declared in LiveViewSecure.Test.Protocol.MismatchLive itself"
+      assert log =~ "LiveViewSecure.attach/2 was called twice on the same socket"
     end
 
     test "a live_session declaring exactly the module's opts is refused too (double attach)",
@@ -68,18 +78,23 @@ defmodule LiveViewSecure.Security.ProtocolTest do
       assert log =~ "LiveViewSecure.attach/2 was called twice on the same socket"
     end
 
-    test "no join rewrite skips a module-level hook: cross-session url, redirects, static, sticky",
+    test "no join shape skips a module-level or live_session hook: no url, url null, redirects, static, sticky",
          %{port: port} do
       rewrites = [
+        &Map.delete(&1, "url"),
+        &Map.put(&1, "url", nil),
         &Map.put(&1, "url", "http://localhost:#{port}/admin"),
         &(&1 |> Map.delete("url") |> Map.put("redirect", "http://localhost:#{port}/admin")),
         &(&1 |> Map.delete("url") |> Map.put("redirect", "http://localhost:#{port}/hooked")),
+        &Map.merge(&1, %{"url" => nil, "redirect" => nil}),
         &Map.put(&1, "static", nil),
         &Map.put(&1, "sticky", true)
       ]
 
-      for rewrite <- rewrites do
-        page = Wire.get_page!(port, "/app-hooked")
+      # /hooked-noparams declares LiveViewSecure in the module, under a
+      # live_session with an app hook; /session-guarded only in its live_session.
+      for path <- ["/hooked-noparams", "/session-guarded"], rewrite <- rewrites do
+        page = Wire.get_page!(port, path)
 
         case Wire.join(Wire.connect!(page), page, payload: rewrite) do
           {:ok, conn} ->
@@ -91,9 +106,28 @@ defmodule LiveViewSecure.Security.ProtocolTest do
         end
       end
 
-      for where <- [:app_hooked, :hooked_live, :session_hook, :early_hook] do
+      for where <- [:hooked_noparams, :session_guarded, :hooked_live, :session_hook, :early_hook] do
         assert recorded(where) == [], "#{where} saw a forged event"
       end
+    end
+
+    test "a module-level on_mount survives a url-less join", %{port: port} do
+      page = Wire.get_page!(port, "/admin")
+
+      # (A fixed LiveView refuses the url-less join outright, which is also fine.)
+      case Wire.join(Wire.connect!(page), page, payload: &Map.delete(&1, "url")) do
+        {:ok, conn} -> {{:ok, _}, _} = Wire.event(conn, "click", "delete_user", %{"id" => "5"})
+        {:error, _} -> :ok
+      end
+
+      assert recorded(:admin) == []
+    end
+
+    test "a url-less join is refused for a LiveView that defines handle_params/3",
+         %{port: port} do
+      page = Wire.get_page!(port, "/session-guarded-params")
+      assert {:error, _} = Wire.join(Wire.connect!(page), page, payload: &Map.delete(&1, "url"))
+      assert recorded(:session_guarded_params) == []
     end
 
     test "an event pipelined right behind phx_join is still verified", %{port: port} do
@@ -941,6 +975,24 @@ defmodule LiveViewSecure.Security.ProtocolTest do
   end
 
   describe "round 2: documented limitations and LiveView behavior (these pass)" do
+    test "LIVEVIEW BEHAVIOR (fixed upstream, CVE-2026-126334): a url-less join can't skip the live_session's own hooks",
+         %{port: port} do
+      # Before LiveView 1.1.34 / 1.2.14 this join was accepted and the app's
+      # live_session hook (here, :session_hook) never ran. It must now be
+      # refused, or run the session's hooks.
+      page = Wire.get_page!(port, "/hooked-noparams")
+
+      case Wire.join(Wire.connect!(page), page, payload: &Map.delete(&1, "url")) do
+        {:error, _refused} ->
+          :ok
+
+        {:ok, conn} ->
+          delete = Wire.phx_values(conn, "#delete-7")
+          {{:ok, _}, _} = Wire.event(conn, "click", "delete_user", delete)
+          assert [{"delete_user", _}] = recorded(:session_hook)
+      end
+    end
+
     test "BY DESIGN: single_use is per LiveView process, so each page load gets one use",
          %{port: port} do
       for _tab <- 1..2 do

@@ -628,7 +628,8 @@ defmodule LiveViewSecure.Security.Misuse.OptionalFieldLive do
     do: log(socket, "opened #{id} manager=#{params["manager_id"] || "none"}")
 end
 
-## A live_session wrapper around attach/2, and a raw client that joins it.
+## A live_session wrapper around attach/2, and a raw client that joins the way a
+## hand-crafted websocket message can.
 
 defmodule LiveViewSecure.Security.Misuse.SecureHook do
   @moduledoc false
@@ -677,7 +678,7 @@ end
 defmodule LiveViewSecure.Security.Misuse.RawClient do
   @moduledoc false
   # Joins a LiveView with a session token like the one the dead render puts in
-  # data-phx-session, the way the JS client does.
+  # data-phx-session, optionally without the "url" the JS client always sends.
 
   alias Phoenix.LiveView.Static
 
@@ -701,12 +702,8 @@ defmodule LiveViewSecure.Security.Misuse.RawClient do
         session: %{}
       })
 
-    params = %{
-      "session" => session,
-      "static" => nil,
-      "params" => %{"_mounts" => 0},
-      "url" => Keyword.fetch!(opts, :url)
-    }
+    params = %{"session" => session, "static" => nil, "params" => %{"_mounts" => 0}}
+    params = if url = opts[:url], do: Map.put(params, "url", url), else: params
 
     socket = %Phoenix.Socket{
       transport_pid: self(),
@@ -1095,21 +1092,28 @@ defmodule LiveViewSecure.Security.MisuseTest do
       end
     end
 
-    test "R2-3: attach/2 called from a live_session on_mount is refused" do
-      # The guard in on_mount/4 only recognizes `on_mount {LiveViewSecure, ...}`
-      # itself. A policy module that calls attach/2 from a live_session's
-      # on_mount must be refused by attach/2.
-      result =
-        Misuse.RawClient.join(
-          LiveViewSecure.Test.Endpoint,
-          Misuse.WrappedLive,
-          router: Misuse.Router,
-          live_session: :admin,
-          url: "http://www.example.com/wrapped"
-        )
+    test "R2-3: attach/2 called from a live_session on_mount can't be skipped by a url-less join" do
+      # LiveView before 1.1.34 / 1.2.14 skipped live_session hooks when the join
+      # had no "url" (CVE-2026-126334), which skipped a policy module calling
+      # attach/2 from a live_session's on_mount. The token RawClient signs has
+      # no route_required? flag, like a token issued before the fix, so this
+      # also covers LiveView's fallback for those.
+      endpoint = LiveViewSecure.Test.Endpoint
+      opts = [router: Misuse.Router, live_session: :admin]
 
-      assert {:error, reason} = result
-      assert inspect(reason) =~ "live_session"
+      # Control: the JS client's join (with "url") runs the wrapper.
+      assert {:ok, pid, topic} =
+               Misuse.RawClient.join(
+                 endpoint,
+                 Misuse.WrappedLive,
+                 opts ++ [url: "http://www.example.com/wrapped"]
+               )
+
+      assert %{socket: %{assigns: %{live_view_secure: %Context{}}}} = :sys.get_state(pid)
+      assert {:crashed, _} = Misuse.RawClient.click(pid, topic, "delete_user", %{"id" => "1"})
+
+      # Attack: the same session token, joined without "url", is refused.
+      assert {:error, _} = Misuse.RawClient.join(endpoint, Misuse.WrappedLive, opts)
     end
   end
 
